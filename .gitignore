@@ -1,0 +1,7 @@
+venv/
+gdelt_cache/
+gdelt_results/
+gdelt_checkpoints/
+gdelt_processed_data/
+__pycache__/
+*.pyc
