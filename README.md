@@ -97,7 +97,7 @@ python -c "import torch_geometric; print('PyTorch Geometric OK')"
 ### Step 1: Fetch GDELT Data & Build Networks
 
 ```bash
-python data_pipeline.py
+python scripts/setup_demo.py
 ```
 
 This will:
@@ -142,15 +142,15 @@ CONFIG = {
 }
 ```
 
-**Output**: `./gdelt_results/`
-```
-gdelt_results/
+**Output**: `./results/`
+``` 
+results/
 ├─ results.json              # metrics, config
-├─ training_curves.png       # loss & validation metrics
-└─ test_metrics.png          # final performance
+├─ test_predictions.npy      # saved test predictions
+└─ test_labels.npy           # aligned test labels
 
-gdelt_checkpoints/
-└─ checkpoint_epoch_*.pt     # saved model weights
+results/checkpoints/
+└─ best_model.pt             # saved model weights
 ```
 
 ### Step 3: Analyze & Visualize
@@ -162,7 +162,7 @@ import numpy as np
 
 # Load data and results
 metadata = json.load(open('./gdelt_processed_data/metadata.json'))
-predictions = np.load('./gdelt_results/predictions.npy')
+predictions = np.load('./results/test_predictions.npy')
 
 # Visualize
 visualizer = ConflictNetworkVisualizer()

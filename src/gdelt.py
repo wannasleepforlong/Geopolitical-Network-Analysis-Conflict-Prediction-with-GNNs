@@ -12,10 +12,23 @@ import pandas as pd
 import requests
 from bs4 import BeautifulSoup
 
-from ..utils.logger import get_logger
-from ..utils.llm_client import LLMClient
+import logging
 
-logger = get_logger("mirofish.gdelt")
+try:
+    from ..utils.logger import get_logger
+    from ..utils.llm_client import LLMClient
+    logger = get_logger("mirofish.gdelt")
+except ImportError:
+    # Fallback when utils package does not exist (new architecture)
+    logger = logging.getLogger("mirofish.gdelt")
+    logger.addHandler(logging.StreamHandler())
+    logger.setLevel(logging.INFO)
+
+    class LLMClient:
+        """Stub LLM client — GDELTEventFeed will degrade gracefully."""
+        def chat_json(self, *args, **kwargs):
+            logger.warning("LLMClient stub: no LLM available")
+            return {}
 
 
 # ─────────────────────────────────────────────────────────────────────────────
