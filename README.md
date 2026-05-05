@@ -548,9 +548,8 @@ If you use this project, please cite:
 
 - **Issues**: GitHub Issues page
 - **Questions**: Open a Discussion
-- **Email**: your.email@example.com
 
 ---
 
-**Last Updated**: 2024
+**Last Updated**: 2026
 **Status**: Active Development 🚀
