@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
 """
-train.py
-========
-CLI entry point for training TemporalGCN / TemporalGAT on GDELT data.
+train_edge_mlp.py
+===================
+Train the EdgeMLP baseline (no graph convolutions, just MLP on edge + node features).
 
 Usage:
-    python train.py --model gat --epochs 30 --hidden_dim 32 --device cpu
+    python train_edge_mlp.py --epochs 50 --hidden_dim 64 --device cpu --seed 42
 """
 from __future__ import annotations
 
@@ -16,9 +16,10 @@ from pathlib import Path
 
 import numpy as np
 import torch
+import torch.nn as nn
 from torch.utils.data import DataLoader
 
-from src.models import TemporalGCN, TemporalGAT, GeopoliticalDataset, ConflictPredictionTrainer
+from src.models import EdgeMLP, GeopoliticalDataset, ConflictPredictionTrainer
 
 
 def set_seed(seed: int = 42) -> None:
@@ -32,19 +33,18 @@ def set_seed(seed: int = 42) -> None:
 
 
 def parse_args() -> argparse.Namespace:
-    p = argparse.ArgumentParser(description="Train geopolitical conflict prediction GNN")
-    p.add_argument("--model", choices=["gcn", "gat"], default="gat", help="Model architecture")
+    p = argparse.ArgumentParser(description="Train EdgeMLP baseline for geopolitical conflict prediction")
     p.add_argument("--data_dir", default="./gdelt_processed_data", help="Preprocessed data directory")
-    p.add_argument("--epochs", type=int, default=30, help="Maximum epochs")
+    p.add_argument("--epochs", type=int, default=50, help="Maximum epochs")
     p.add_argument("--batch_size", type=int, default=4, help="Batch size")
-    p.add_argument("--hidden_dim", type=int, default=8, help="Hidden dimension")
+    p.add_argument("--hidden_dim", type=int, default=16, help="Hidden dimension")
     p.add_argument("--lr", type=float, default=1e-3, help="Learning rate")
     p.add_argument("--weight_decay", type=float, default=1e-5, help="Weight decay")
     p.add_argument("--temporal_window", type=int, default=12, help="Temporal window size")
     p.add_argument("--device", default="cpu", help="torch device")
     p.add_argument("--patience", type=int, default=10, help="Early stopping patience")
     p.add_argument("--seed", type=int, default=42, help="Random seed for reproducibility")
-    p.add_argument("--out_dir", default="./results", help="Output directory")
+    p.add_argument("--out_dir", default="./results/edge_mlp", help="Output directory")
     p.add_argument(
         "--split_strategy",
         choices=["time", "real_targets_only"],
@@ -84,29 +84,12 @@ def main() -> None:
     test_loader = DataLoader(test_ds, batch_size=args.batch_size, shuffle=False)
 
     # Model
-    if args.model == "gcn":
-        model = TemporalGCN(
-            num_node_features=num_node_features,
-            num_edge_features=num_edge_features,
-            hidden_dim=args.hidden_dim,
-        )
-    else:
-        model = TemporalGAT(
-            num_node_features=num_node_features,
-            num_edge_features=num_edge_features,
-            hidden_dim=args.hidden_dim,
-            num_heads=2,
-        )
-    print(f"[train] Model: {args.model.upper()}, params={sum(p.numel() for p in model.parameters()):,}")
-
-    # Compute pos_weight from training labels
-    labels = np.load(Path(args.data_dir) / "edge_labels.npy")
-    valid = np.load(Path(args.data_dir) / "valid_mask.npy")
-    train_idx = np.array(train_ds.indices, dtype=int)
-    pos = labels[train_idx][valid[train_idx]].sum()
-    neg = valid[train_idx].sum() - pos
-    pos_weight = float(neg / max(pos, 1))
-    print(f"[train] pos_weight={pos_weight:.2f}")
+    model = EdgeMLP(
+        num_node_features=num_node_features,
+        num_edge_features=num_edge_features,
+        hidden_dim=args.hidden_dim,
+    )
+    print(f"[train] Model: EdgeMLP, params={sum(p.numel() for p in model.parameters()):,}")
 
     # Trainer
     trainer = ConflictPredictionTrainer(
@@ -114,7 +97,8 @@ def main() -> None:
         device=device,
         lr=args.lr,
         weight_decay=args.weight_decay,
-        pos_weight=pos_weight,
+        pos_weight=None,
+        use_focal_loss=True,
     )
 
     training_result = trainer.fit(
@@ -127,9 +111,9 @@ def main() -> None:
 
     # Test evaluation
     test_metrics = trainer.evaluate(test_loader, threshold=trainer.best_threshold)
-    print(f"[train] Test AUC={test_metrics['auc']:.4f} | F1={test_metrics['f1']:.4f}")
+    print(f"[train] Test AUC={test_metrics['auc']:.4f} | F1={test_metrics['f1']:.4f} | Acc={test_metrics['accuracy']:.4f}")
 
-    # Save predictions aligned to the actual test-period indices
+    # Save predictions
     test_preds = trainer.predict(test_loader)
     test_periods = [test_ds.periods[idx] for idx in test_ds.indices]
     np.save(out_dir / "test_predictions.npy", test_preds)

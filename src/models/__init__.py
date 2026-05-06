@@ -12,11 +12,17 @@ Modules:
 from .dataset import GeopoliticalDataset
 from .temporal_gcn import TemporalGCN
 from .temporal_gat import TemporalGAT
+from .temporal_tnc import TemporalTNC
+from .edge_mlp import EdgeMLP
+from .tiny_mlp import TinyMLP
 from .trainer import ConflictPredictionTrainer
 
 __all__ = [
     "TemporalGCN",
     "TemporalGAT",
+    "TemporalTNC",
+    "EdgeMLP",
+    "TinyMLP",
     "GeopoliticalDataset",
     "ConflictPredictionTrainer",
 ]
